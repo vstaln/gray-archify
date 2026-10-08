@@ -1,4 +1,13 @@
-# gray-archify
+<p align="center">
+  <img src="assets/gray-logo.svg" alt="gray" width="96">
+</p>
+<h1 align="center">gray-archify</h1>
+<p align="center">Map a repository's architecture into one self-contained interactive HTML file.</p>
+<p align="center">
+  <a href="https://github.com/vstaln/gray-archify/blob/main/LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <img alt="gray plugin" src="https://img.shields.io/badge/gray-plugin-7aa2f7.svg">
+  <img alt="rust" src="https://img.shields.io/badge/built%20with-rust-orange.svg">
+</p>
 
 Map a repository's architecture into ONE self-contained interactive HTML
 file — no external assets, opens offline. The artifact is the deliverable.
@@ -32,16 +41,13 @@ file — no external assets, opens offline. The artifact is the deliverable.
 `plugin/manifest`, `tool/call`, `command/run` (`/archify` → status),
 `plugin/shutdown`. No hooks, no capabilities — protocol 1.1.
 
-## Upstream
-
-[tt-a1i/archify](https://github.com/tt-a1i/archify) — MIT. Behavioral port
-scoped to the agent-facing core (repo → one HTML module map + markdown
-outline); upstream is a broader interactive-visual generator, nothing was
-copied verbatim.
-
 ## Install
 
 ```sh
 cargo install --path .
 gray plugin install ~/.cargo/bin/gray-archify
 ```
+
+---
+Part of the [gray](https://github.com/vstaln/gray) plugin ecosystem —
+the open-source AI agent harness. <https://gray.alignment.id>
