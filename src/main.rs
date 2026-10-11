@@ -583,7 +583,11 @@ fn call_tool(name: &str, args: &Value) -> Result<String, String> {
             }
             let (root, mods, edges) = scan(args)?;
             let mut s = render_outline(&root, &mods, edges, question);
-            s.truncate(8000);
+            let mut end = s.len().min(8000);
+            while end > 0 && !s.is_char_boundary(end) {
+                end -= 1;
+            }
+            s.truncate(end);
             Ok(s)
         }
         other => Err(format!("unknown tool: {other}")),
