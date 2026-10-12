@@ -1,30 +1,39 @@
-<div align="center">
-  <img alt="gray-archify" src="assets/icon.svg" width="120" height="120" />
-  <h1>gray-archify</h1>
-  <p><strong>Map a repository's architecture into one self-contained interactive HTML file.</strong></p>
-  <p>
-    <a href="https://gray.alignment.id">Website</a> ·
-    <a href="https://gray.alignment.id/plugins/gray-archify">Store</a> ·
-    <a href="https://github.com/vstaln/gray-archify">Source</a> ·
-    <a href="https://github.com/vstaln/gray">gray</a>
-  </p>
-  <p>
-    <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-1c1c20?style=flat-square&labelColor=0a0a0b" /></a>
-    <a href="https://www.rust-lang.org"><img alt="Built with Rust" src="https://img.shields.io/badge/built%20with-rust-1c1c20?style=flat-square&labelColor=0a0a0b&logo=rust&logoColor=d4a373" /></a>
-    <a href="https://gray.alignment.id/plugins/gray-archify"><img alt="gray plugin" src="https://img.shields.io/badge/gray-plugin-1c1c20?style=flat-square&labelColor=0a0a0b&color=7aa2f7" /></a>
-  </p>
-</div>
-
-<br/>
-
-```bash
-gray plugin install gray-archify
-```
+<p align="center">
+  <img src="assets/gray-logo.svg" alt="gray" width="96">
+</p>
+<h1 align="center">gray-archify</h1>
+<p align="center">Map a repository's architecture into one self-contained interactive HTML file.</p>
+<p align="center">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://gray.alignment.id"><img alt="gray plugin" src="https://img.shields.io/badge/gray-plugin-7aa2f7.svg"></a>
+  <a href="https://www.rust-lang.org"><img alt="built with Rust" src="https://img.shields.io/badge/built%20with-rust-orange.svg"></a>
+  <a href="https://github.com/vstaln/gray-archify/releases"><img alt="latest release" src="https://img.shields.io/github/v/release/vstaln/gray-archify"></a>
+</p>
 
 Map a repository's architecture into ONE self-contained interactive HTML
 file — no external assets, opens offline. The artifact is the deliverable.
 
-## Tools
+## Screenshot
+
+An `archify` tool call inside a gray session, and the map it wrote
+(rendered from the generated `archify.html`):
+
+![archify tool call in gray](assets/screenshot.svg)
+
+![archify output: an interactive module map of gray-devin-sub](assets/map.png)
+
+## Install
+
+Not in the plugin hub yet, so install from source (needs a Rust toolchain):
+
+```sh
+cargo install --path .
+gray plugin install ~/.cargo/bin/gray-archify
+```
+
+## Usage
+
+### Tools
 
 - **`archify {path?, depth?, out?}`** — walks the repo (≤500 files, skips
   `node_modules`/`.git`/`target`/…), reads sizes/loc, parses import and
@@ -38,7 +47,13 @@ file — no external assets, opens offline. The artifact is the deliverable.
   and resolved import targets) for the model to reason over when answering
   `question`.
 
-## The HTML
+### Slash command
+
+`/archify` replies with a one-line summary of the two tools.
+
+## How it works
+
+### The HTML
 
 - Left: expandable directory tree (`<details>`) with per-file loc/size and
   entry-point markers (`main.*`, `index.*`, `lib.rs`, …).
@@ -48,22 +63,27 @@ file — no external assets, opens offline. The artifact is the deliverable.
 - JSON data is inlined with `<` escaped so it can't break the script tag;
   all names HTML-escaped.
 
-## Wire methods used
+### Wire methods used
 
 `plugin/manifest`, `tool/call`, `command/run` (`/archify` → status),
 `plugin/shutdown`. No hooks, no capabilities — protocol 1.1.
 
-## Install
+<details>
+<summary>Conformance</summary>
 
-```sh
-cargo install --path .
-gray plugin install ~/.cargo/bin/gray-archify
-```
+`gray plugin check` output for this build:
 
-## Tags
+![gray plugin check output](assets/conformance.svg)
 
-`gray` `plugin` `archify` `rust`
+</details>
 
----
-Part of the [gray](https://github.com/vstaln/gray) plugin ecosystem —
-the open-source AI agent harness. <https://gray.alignment.id>
+## License
+
+MIT. See [LICENSE](LICENSE).
+
+## Links
+
+- Gray: <https://gray.alignment.id>
+- Gray source: <https://github.com/vstaln/gray>
+
+Part of the [gray](https://github.com/vstaln/gray) plugin ecosystem — the open-source AI agent harness.
