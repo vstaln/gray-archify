@@ -57,6 +57,7 @@ fn manifest() -> Value {
             }
         ],
         "commands": ["/archify"],
+        "command_descriptions": {"/archify": "show what the repo map tools do"},
     })
 }
 
