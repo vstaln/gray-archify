@@ -73,10 +73,10 @@ static RE_RS_MOD: LazyLock<Regex> =
 static RE_PY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?m)^\s*from\s+([.\w]+)\s+import|^\s*import\s+([.\w]+)").unwrap()
 });
-static RE_GO: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"^\s*(?:[\w.]+\s+)?"([\w./-]+)"\s*$|import\s+"([\w./-]+)""#).unwrap());
-static RE_C: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"#\s*include\s*"([^"]+)""#).unwrap());
+static RE_GO: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"^\s*(?:[\w.]+\s+)?"([\w./-]+)"\s*$|import\s+"([\w./-]+)""#).unwrap()
+});
+static RE_C: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"#\s*include\s*"([^"]+)""#).unwrap());
 static RE_JAVA: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?m)^\s*import\s+(?:static\s+)?([\w.]+)\s*;").unwrap());
 
@@ -93,8 +93,8 @@ fn lang_of(ext: &str) -> &'static str {
 }
 
 const CODE_EXTS: &[&str] = &[
-    "rs", "ts", "tsx", "js", "jsx", "mjs", "cjs", "py", "go", "c", "h", "cpp", "cc", "hpp",
-    "cxx", "hxx", "java", "kt", "rb", "php", "cs", "swift", "scala", "vue", "svelte",
+    "rs", "ts", "tsx", "js", "jsx", "mjs", "cjs", "py", "go", "c", "h", "cpp", "cc", "hpp", "cxx",
+    "hxx", "java", "kt", "rb", "php", "cs", "swift", "scala", "vue", "svelte",
 ];
 
 /// Extract raw import specifiers + whether each is explicitly relative.
@@ -154,25 +154,41 @@ fn imports_of(ext: &str, content: &str) -> Vec<String> {
 
 #[derive(Debug)]
 struct Mod {
-    rel: String,          // repo-relative path, '/'-separated
-    dir: String,          // repo-relative dir ("" for root)
+    rel: String, // repo-relative path, '/'-separated
+    dir: String, // repo-relative dir ("" for root)
     ext: String,
     loc: usize,
     size: u64,
     specs: Vec<String>,
-    edges: Vec<usize>,    // resolved indices into `mods`
+    edges: Vec<usize>, // resolved indices into `mods`
 }
 
 const SKIP_DIRS: &[&str] = &[
-    "node_modules", ".git", "target", "dist", "build", ".next", ".nuxt", "coverage",
-    "__pycache__", "vendor", ".gray", ".venv", "venv", "out", ".turbo", ".cache",
+    "node_modules",
+    ".git",
+    "target",
+    "dist",
+    "build",
+    ".next",
+    ".nuxt",
+    "coverage",
+    "__pycache__",
+    "vendor",
+    ".gray",
+    ".venv",
+    "venv",
+    "out",
+    ".turbo",
+    ".cache",
 ];
 
 fn walk(dir: &Path, root: &Path, depth: usize, max_depth: usize, out: &mut Vec<Mod>) {
     if out.len() >= FILE_CAP || depth > max_depth {
         return;
     }
-    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return;
+    };
     let mut entries: Vec<_> = rd.flatten().collect();
     entries.sort_by_key(|e| e.file_name());
     for e in entries {
@@ -186,8 +202,16 @@ fn walk(dir: &Path, root: &Path, depth: usize, max_depth: usize, out: &mut Vec<M
                 walk(&p, root, depth + 1, max_depth, out);
             }
         } else if !name.starts_with('.') {
-            let ext = p.extension().and_then(|x| x.to_str()).unwrap_or("").to_string();
-            let rel = p.strip_prefix(root).unwrap_or(&p).to_string_lossy().replace('\\', "/");
+            let ext = p
+                .extension()
+                .and_then(|x| x.to_str())
+                .unwrap_or("")
+                .to_string();
+            let rel = p
+                .strip_prefix(root)
+                .unwrap_or(&p)
+                .to_string_lossy()
+                .replace('\\', "/");
             let (loc, specs) = if CODE_EXTS.contains(&ext.as_str()) {
                 match std::fs::read_to_string(&p) {
                     Ok(c) => (c.lines().count(), imports_of(&ext, &c)),
@@ -197,8 +221,19 @@ fn walk(dir: &Path, root: &Path, depth: usize, max_depth: usize, out: &mut Vec<M
                 (0, Vec::new())
             };
             let size = e.metadata().map(|m| m.len()).unwrap_or(0);
-            let dir_rel = Path::new(&rel).parent().map(|d| d.to_string_lossy().replace('\\', "/")).unwrap_or_default();
-            out.push(Mod { rel, dir: dir_rel, ext, loc, size, specs, edges: Vec::new() });
+            let dir_rel = Path::new(&rel)
+                .parent()
+                .map(|d| d.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_default();
+            out.push(Mod {
+                rel,
+                dir: dir_rel,
+                ext,
+                loc,
+                size,
+                specs,
+                edges: Vec::new(),
+            });
         }
     }
 }
@@ -233,7 +268,9 @@ fn resolve(spec: &str, from: &Mod, ext: &str, files: &HashSet<String>) -> Option
                 use std::path::Component::*;
                 match part {
                     CurDir => {}
-                    ParentDir => { d.pop(); }
+                    ParentDir => {
+                        d.pop();
+                    }
                     Normal(s) => d.push(s),
                     _ => {}
                 }
@@ -260,12 +297,12 @@ fn resolve(spec: &str, from: &Mod, ext: &str, files: &HashSet<String>) -> Option
         }
         let s = parts.join("/");
         if !s.is_empty() {
-            join_exts(&format!("{dir}/{s}").trim_matches('/').to_string(), &mut cands);
+            join_exts(format!("{dir}/{s}").trim_matches('/'), &mut cands);
             join_exts(&format!("src/{s}"), &mut cands);
             join_exts(&s, &mut cands);
             // `use a::b::item` — the last segment is usually an item, not a module
             if let Some((head, _)) = s.rsplit_once('/') {
-                join_exts(&format!("{dir}/{head}").trim_matches('/').to_string(), &mut cands);
+                join_exts(format!("{dir}/{head}").trim_matches('/'), &mut cands);
                 join_exts(&format!("src/{head}"), &mut cands);
                 join_exts(head, &mut cands);
             }
@@ -298,10 +335,13 @@ fn resolve(spec: &str, from: &Mod, ext: &str, files: &HashSet<String>) -> Option
     None
 }
 
-fn build_graph(mods: &mut Vec<Mod>) -> usize {
+fn build_graph(mods: &mut [Mod]) -> usize {
     let files: HashSet<String> = mods.iter().map(|m| m.rel.clone()).collect();
-    let index: HashMap<String, usize> =
-        mods.iter().enumerate().map(|(i, m)| (m.rel.clone(), i)).collect();
+    let index: HashMap<String, usize> = mods
+        .iter()
+        .enumerate()
+        .map(|(i, m)| (m.rel.clone(), i))
+        .collect();
     let mut resolved: Vec<Vec<usize>> = Vec::with_capacity(mods.len());
     for m in mods.iter() {
         let mut seen = HashSet::new();
@@ -332,15 +372,28 @@ fn build_graph(mods: &mut Vec<Mod>) -> usize {
 // --- HTML ---------------------------------------------------------------------
 
 fn html_escape(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 fn is_entry(rel: &str) -> bool {
     let name = rel.rsplit('/').next().unwrap_or(rel);
     matches!(
         name,
-        "main.rs" | "main.go" | "main.py" | "__main__.py" | "index.ts" | "index.tsx"
-            | "index.js" | "app.py" | "App.tsx" | "main.c" | "lib.rs" | "mod.rs"
+        "main.rs"
+            | "main.go"
+            | "main.py"
+            | "__main__.py"
+            | "index.ts"
+            | "index.tsx"
+            | "index.js"
+            | "app.py"
+            | "App.tsx"
+            | "main.c"
+            | "lib.rs"
+            | "mod.rs"
     )
 }
 
@@ -378,7 +431,11 @@ fn render_tree(mods: &[Mod]) -> String {
             } else {
                 format!("{} B", m.size)
             };
-            let entry = if is_entry(&m.rel) { " <em>entry</em>" } else { "" };
+            let entry = if is_entry(&m.rel) {
+                " <em>entry</em>"
+            } else {
+                ""
+            };
             s.push_str(&format!(
                 "<div class=\"file\" title=\"{}\">{fname}<span class=\"meta\">{meta}</span>{entry}</div>",
                 html_escape(&m.rel),
@@ -514,7 +571,9 @@ draw();
 fn render_outline(root: &Path, mods: &[Mod], edges: usize, question: &str) -> String {
     let mut s = format!(
         "# Module map — {}\nquestion: {question}\n{} files, {} resolved import edges\n\n",
-        root.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| ".".into()),
+        root.file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| ".".into()),
         mods.len(),
         edges,
     );
@@ -527,7 +586,7 @@ fn render_outline(root: &Path, mods: &[Mod], edges: usize, question: &str) -> St
     dirs.sort();
     for d in dirs {
         let mut ms = by_dir[d].clone();
-        ms.sort_by(|a, b| b.loc.cmp(&a.loc));
+        ms.sort_by_key(|m| std::cmp::Reverse(m.loc));
         s.push_str(&format!("## {}\n", if d.is_empty() { "." } else { d }));
         for m in ms {
             let name = m.rel.rsplit('/').next().unwrap_or(&m.rel);
@@ -540,7 +599,11 @@ fn render_outline(root: &Path, mods: &[Mod], edges: usize, question: &str) -> St
             if targets.is_empty() {
                 s.push_str(&format!("- {name} ({} loc){entry}\n", m.loc));
             } else {
-                s.push_str(&format!("- {name} ({} loc){entry} → {}\n", m.loc, targets.join(", ")));
+                s.push_str(&format!(
+                    "- {name} ({} loc){entry} → {}\n",
+                    m.loc,
+                    targets.join(", ")
+                ));
             }
         }
     }
@@ -566,16 +629,26 @@ fn call_tool(name: &str, args: &Value) -> Result<String, String> {
     match name {
         "archify" => {
             let (root, mods, edges) = scan(args)?;
-            let out = args.get("out").and_then(Value::as_str).unwrap_or("./archify.html");
+            let out = args
+                .get("out")
+                .and_then(Value::as_str)
+                .unwrap_or("./archify.html");
             let out_path = PathBuf::from(out);
             let out_path = if out_path.is_absolute() {
                 out_path
             } else {
-                std::env::current_dir().map_err(|e| e.to_string())?.join(out_path)
+                std::env::current_dir()
+                    .map_err(|e| e.to_string())?
+                    .join(out_path)
             };
             let html = render_html(&root, &mods, edges);
             std::fs::write(&out_path, &html).map_err(|e| format!("couldn't write {out}: {e}"))?;
-            Ok(format!("wrote {} ({} modules, {} edges)", out_path.display(), mods.len(), edges))
+            Ok(format!(
+                "wrote {} ({} modules, {} edges)",
+                out_path.display(),
+                mods.len(),
+                edges
+            ))
         }
         "archify_prompt" => {
             let question = args.get("question").and_then(Value::as_str).unwrap_or("");
@@ -649,7 +722,9 @@ fn main() -> std::io::Result<()> {
     let mut stdout = std::io::stdout();
     for line in stdin.lock().lines() {
         let line = line?;
-        let Ok(req) = serde_json::from_str::<Value>(&line) else { continue };
+        let Ok(req) = serde_json::from_str::<Value>(&line) else {
+            continue;
+        };
         let (reply, exit) = handle(&req);
         if let Some(reply) = reply {
             writeln!(stdout, "{reply}")?;
@@ -667,14 +742,20 @@ mod tests {
     use super::*;
 
     fn call(method: &str, params: Value) -> Value {
-        handle(&json!({ "id": 1, "method": method, "params": params })).0.unwrap()
+        handle(&json!({ "id": 1, "method": method, "params": params }))
+            .0
+            .unwrap()
     }
 
     fn fixture(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("archify-test-{}-{tag}", std::process::id()));
         let src = dir.join("src");
         std::fs::create_dir_all(&src).unwrap();
-        std::fs::write(src.join("main.rs"), "mod store;\nuse crate::cli::run;\nfn main() {}\n").unwrap();
+        std::fs::write(
+            src.join("main.rs"),
+            "mod store;\nuse crate::cli::run;\nfn main() {}\n",
+        )
+        .unwrap();
         std::fs::write(src.join("store.rs"), "pub struct S;\n").unwrap();
         std::fs::create_dir_all(src.join("cli")).unwrap();
         std::fs::write(src.join("cli/mod.rs"), "pub fn run() {}\n").unwrap();
@@ -685,7 +766,12 @@ mod tests {
     fn manifest_has_two_tools() {
         let m = call("plugin/manifest", Value::Null)["result"].clone();
         assert_eq!(m["name"], "archify");
-        let names: Vec<_> = m["tools"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
+        let names: Vec<_> = m["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t["name"].as_str().unwrap())
+            .collect();
         assert_eq!(names, vec!["archify", "archify_prompt"]);
     }
 
@@ -704,24 +790,32 @@ mod tests {
     fn archify_writes_html_and_reports_counts() {
         let dir = fixture("html");
         let out = dir.join("map.html");
-        let r = call("tool/call", json!({
-            "name": "archify",
-            "args": {"path": dir.to_str().unwrap(), "depth": 4, "out": out.to_str().unwrap()}
-        }));
+        let r = call(
+            "tool/call",
+            json!({
+                "name": "archify",
+                "args": {"path": dir.to_str().unwrap(), "depth": 4, "out": out.to_str().unwrap()}
+            }),
+        );
         let c = r["result"]["content"].as_str().unwrap();
         assert!(c.contains("3 modules") && c.contains("2 edges"), "{c}");
         let html = std::fs::read_to_string(&out).unwrap();
-        assert!(html.contains("<details>") && html.contains("<svg") && !html.contains("<script src"));
+        assert!(
+            html.contains("<details>") && html.contains("<svg") && !html.contains("<script src")
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn archify_prompt_returns_markdown_map() {
         let dir = fixture("outline");
-        let r = call("tool/call", json!({
-            "name": "archify_prompt",
-            "args": {"question": "where is state?", "path": dir.to_str().unwrap(), "depth": 4}
-        }));
+        let r = call(
+            "tool/call",
+            json!({
+                "name": "archify_prompt",
+                "args": {"question": "where is state?", "path": dir.to_str().unwrap(), "depth": 4}
+            }),
+        );
         let c = r["result"]["content"].as_str().unwrap();
         assert!(c.contains("# Module map") && c.contains("store.rs") && c.contains("→"));
         let _ = std::fs::remove_dir_all(&dir);
@@ -729,7 +823,10 @@ mod tests {
 
     #[test]
     fn bad_path_is_tool_error_not_panic() {
-        let r = call("tool/call", json!({"name": "archify", "args": {"path": "/nonexistent-xyz"}}));
+        let r = call(
+            "tool/call",
+            json!({"name": "archify", "args": {"path": "/nonexistent-xyz"}}),
+        );
         assert_eq!(r["result"]["is_error"], true);
     }
 
